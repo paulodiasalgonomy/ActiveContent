@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Gerar texto dinâmico com Gemini 2.0</h2>
+
+    <input id="name" placeholder="Nome" />
+    <input id="city" placeholder="Cidade" />
+    <input id="categories" placeholder="Categorias separadas por vírgula" />
+
+    <button onclick="generate()">Gerar</button>
+
+    <pre id="result" style="white-space: pre-wrap; margin-top: 20px; border: 1px solid #ccc; padding: 15px; min-height: 50px; background: #f4f4f4; border-radius: 5px; font-family: sans-serif;"></pre>
+
+    <script>
+async function generate() {
+    const resultElement = document.getElementById("result");
+    resultElement.textContent = "Buscando o clima e gerando texto...";
+    resultElement.style.color = "#666";
+    
+    const name = document.getElementById("name").value;
+    const city = document.getElementById("city").value;
+    const categories = document.getElementById("categories").value
+        .split(",")
+        .map(c => c.trim());
+
+    // 1. BUSCA DE CLIMA (Usando a cidade informada)
+    let weatherSummary = "Sem previsão climática específica para os próximos dias.";
+    const API_KEY = "AIzaSyBLo72xw3ivJ9yg2meKEAGw_1rvquIdHIA"; // ⚠️ A chave precisa ser definida aqui para as duas chamadas
+    const MODEL_NAME = "gemini-2.0-flash";
+
+    try {
+        const weatherResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ 
+                        text: `Qual a previsão do tempo resumida (máximo 1 frase, sobre sol/chuva/frio) para ${city} nos próximos 5 dias?`
+                    }]
+                }]
+            })
+        });
+        const weatherData = await weatherResponse.json();
+        if (weatherData.candidates && weatherData.candidates.length > 0) {
+            weatherSummary = weatherData.candidates[0].content.parts[0].text.trim();
+        }
+    } catch (e) {
+        console.error("Erro ao buscar clima, usando previsão padrão.", e);
+        weatherSummary = "Clima quente e com pancadas de chuva, exigindo proteção e fixação.";
+    }
+
+
+    // 2. MONTAGEM DO PROMPT
+    const prompt = `
+        Aja como um especialista em beleza da Época Cosméticos.
+        Você deve gerar uma mensagem amigável, pessoal e de alta conversão para o usuário final.
+
+        Instruções:
+        1. Comece com uma saudação calorosa e personalizada (use o nome).
+        2. Mencione a cidade para gerar conexão.
+        3. Use as CATEGORIAS PREFERIDAS para sugerir 1 a 2 produtos/dicas relevantes.
+        4. Com base na PREVISÃO DO TEMPO, adicione uma dica de beleza que se relacione com o clima.
+        5. O tom deve ser inspirador, luxuoso e focado em autocuidado, como o da Época Cosméticos.
+        6. O texto final deve ser natural, humanizado e pronto para ser enviado.
+        7. NÃO INCLUA os títulos 'Dados do Cliente:' ou 'Instruções:'.
+
+        Dados do Cliente:
+        Nome: ${name}
+        Cidade: ${city}
+        Categorias Preferidas: ${categories.join(", ")}
+        Previsão do Tempo: ${weatherSummary}
+    `;
+
+    // 3. CHAMADA FINAL AO GEMINI PARA GERAR O TEXTO DE MARKETING
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                // ✅ CORREÇÃO: Alterado de 'config' para 'generationConfig'
+                generationConfig: { 
+                    temperature: 0.8
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.candidates && data.candidates.length > 0) {
+            resultElement.style.color = "#000";
+            resultElement.textContent = data.candidates[0].content.parts[0].text;
+        } else {
+            console.error("Erro API:", data);
+            resultElement.style.color = "red";
+            const errorMsg = data.error ? data.error.message : JSON.stringify(data);
+            resultElement.textContent = "Erro ao gerar a mensagem final: " + errorMsg;
+        }
+
+    } catch (error) {
+        console.error("Erro de Rede:", error);
+        resultElement.textContent = "Erro de conexão. Verifique sua internet ou a chave API.";
+    }
+}
+    </script>
+</body>
+</html>
