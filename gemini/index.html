@@ -1,85 +1,284 @@
-
 <!DOCTYPE html>
 <html>
+<head>
+    <title>Gerar Texto e Carrossel de Produtos</title>
+    <style>
+        body { font-family: sans-serif; }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px;
+            text-align: center;
+            width: 150px;
+            display: inline-block;
+            vertical-align: top;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .product-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .product-card a {
+            text-decoration: none;
+            color: #333;
+            font-weight: bold;
+            display: block;
+            margin-top: 5px;
+            word-wrap: break-word;
+            overflow-x: hidden;
+        }
+        .product-card .buy-button {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #007bff; /* Cor Primária Época */
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        #result {
+            /* Mantém a formatação de bloco do <pre> no <div> */
+            white-space: pre-wrap; 
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            min-height: 50px;
+            background: #f4f4f4;
+            border-radius: 5px;
+        }
+        #carousel-container h3 {
+            margin-top: 30px;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 5px;
+        }
+        #products-carousel {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 10px 0;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .error-message {
+            color: red;
+            font-weight: bold;
+            padding: 15px;
+            border: 1px solid red;
+            background-color: #ffeaea;
+            border-radius: 5px;
+        }
+    </style>
+</head>
 <body>
-    <h2>Gerar texto dinâmico com Gemini 2.0</h2>
+    <h2>Gerar Texto e Carrossel Dinâmico</h2>
 
-    <input id="name" placeholder="Nome" />
-    <input id="city" placeholder="Cidade" />
-    <input id="categories" placeholder="Categorias separadas por vírgula" />
+    <input id="name" placeholder="Nome" value="Mariana" />
+    <input id="city" placeholder="Cidade" value="São Paulo" />
+    
+    <select id="gender">
+        <option value="Feminino" selected>Feminino</option>
+        <option value="Masculino">Masculino</option>
+        <option value="Unissex">Unissex</option>
+        <option value="Prefiro não responder">Prefiro não responder</option>
+    </select>
 
     <button onclick="generate()">Gerar</button>
 
-    <pre id="result" style="white-space: pre-wrap; margin-top: 20px; border: 1px solid #ccc; padding: 15px; min-height: 50px; background: #f4f4f4; border-radius: 5px; font-family: sans-serif;"></pre>
+    <div id="result"></div>
+
+    <div id="carousel-container">
+    </div>
 
     <script>
+// Função para renderizar o carrossel HTML ou uma mensagem de erro
+function renderCarousel(products, errorMessage) {
+    const container = document.getElementById("carousel-container");
+    container.innerHTML = ''; // Limpa o conteúdo
+
+    if (products && products.length > 0) {
+        const carouselHTML = products.map(product => `
+            <div class="product-card">
+                <a href="${product.clickUrl || '#'}" target="_blank">
+                    <img src="${product.imageURL || 'https://via.placeholder.com/150x150?text=Produto+Algonomy'}" alt="${product.name}"><br />
+                    ${product.name}
+                </a>
+                <a href="${product.clickUrl || '#'}" class="buy-button" target="_blank">Comprar</a>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <h3>🛍️ Produtos Recomendados para você:</h3>
+            <div id="products-carousel">${carouselHTML}</div>
+        `;
+    } else if (errorMessage) {
+        container.innerHTML = `
+            <h3>⚠️ Status da Algonomy:</h3>
+            <div class="error-message">${errorMessage}</div>
+        `;
+    }
+}
+
+
 async function generate() {
     const resultElement = document.getElementById("result");
-    resultElement.textContent = "Buscando o clima e gerando texto...";
+    resultElement.textContent = "Buscando o clima e gerando recomendações...";
     resultElement.style.color = "#666";
+    // Limpa o carrossel anterior
+    document.getElementById("carousel-container").innerHTML = '';
     
     const name = document.getElementById("name").value;
     const city = document.getElementById("city").value;
-    const categories = document.getElementById("categories").value
-        .split(",")
-        .map(c => c.trim());
+    const gender = document.getElementById("gender").value;
+    
 
-    // 1. BUSCA DE CLIMA (Usando a cidade informada)
-    let weatherSummary = "Sem previsão climática específica para os próximos dias.";
-    const API_KEY = "AIzaSyBLo72xw3ivJ9yg2meKEAGw_1rvquIdHIA"; // ⚠️ A chave precisa ser definida aqui para as duas chamadas
+    // --- VARIÁVEIS CONSTANTES ---
+    // !!! SUBSTITUA SUA CHAVE GEMINI AQUI !!!
+    const API_KEY = "AIzaSyBLo72xw3ivJ9yg2meKEAGw_1rvquIdHIA"; 
     const MODEL_NAME = "gemini-2.0-flash";
+    
+    // --- VARIÁVEIS DA ALGONOMY ---
+    // !!! SUBSTITUA SUAS CHAVES ALGONOMY AQUI !!!
+    const ALGONOMY_BASE_URL = "https://recs.richrelevance.com/rrserver/api/rrPlatform/recsForPlacements";
+    const ALGONOMY_PARAMS = "apiKey=c85912f892c73e30&apiClientKey=eac9cfa39420d536&sessionId=algtestsession345975231641&userId=algtestuser463166675929&includeStrategyData=true&excludeItemAttributes=true&categoryData=false&excludeHtml=true";
+    
+    // Mapeamento da tag Gemini para o placement Algonomy
+    const placementMap = {
+        'SOL_CALOR': 'email_page.sol',
+        'FRIO_SECO': 'email_page.frio',
+        'CHUVA_UMIDADE': 'email_page.chuva',
+        'TEMPO_AMENO': 'email_page.ameno'
+    };
+    // ----------------------------
+
+    // 1. CHAME O GEMINI PARA OBTER A TAG CLIMÁTICA PADRONIZADA
+    let weatherTag = "TEMPO_AMENO"; 
+    const weatherPrompt = `
+        Analise a previsão do tempo para ${city} nos próximos 5 dias. 
+        Responda APENAS com uma das seguintes palavras-chave, sem texto adicional ou explicação, 
+        em caixa alta: [SOL_CALOR], [CHUVA_UMIDADE], [FRIO_SECO], ou [TEMPO_AMENO]. 
+        Se a previsão for mista ou incerta, use [TEMPO_AMENO].
+    `;
 
     try {
         const weatherResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ 
-                        text: `Qual a previsão do tempo resumida (máximo 1 frase, sobre sol/chuva/frio) para ${city} nos próximos 5 dias?`
-                    }]
-                }]
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: weatherPrompt }] }] })
         });
         const weatherData = await weatherResponse.json();
+        
+        if (!weatherResponse.ok) {
+             throw new Error(`Erro Gemini (Passo 1): ${weatherData.error ? weatherData.error.message : JSON.stringify(weatherData)}`);
+        }
+
         if (weatherData.candidates && weatherData.candidates.length > 0) {
-            weatherSummary = weatherData.candidates[0].content.parts[0].text.trim();
+            weatherTag = weatherData.candidates[0].content.parts[0].text.trim().toUpperCase();
         }
     } catch (e) {
-        console.error("Erro ao buscar clima, usando previsão padrão.", e);
-        weatherSummary = "Clima quente e com pancadas de chuva, exigindo proteção e fixação.";
+        console.error("Erro ao buscar tag climática, usando default:", e);
+        resultElement.style.color = "red";
+        resultElement.textContent = `Erro no Passo 1 (Gemini Key?): ${e.message || "Erro desconhecido"}. Usando clima default: ${weatherTag}.`;
+    }
+    
+    resultElement.textContent = `Tag do Clima Obtida: ${weatherTag}. Tentando chamar API de Recomendação Algonomy...`;
+
+    // 2. CHAMADA REAL À API ALGONOMY
+    
+    const placement = placementMap[weatherTag] || 'email_page.ameno';
+    const algonomyUrl = `${ALGONOMY_BASE_URL}?${ALGONOMY_PARAMS}&placements=${placement}`;
+    
+    let recommendedProductsData = []; 
+    let recommendedProductsNames = "Não foi possível obter recomendações da Algonomy."; 
+    let algonomyErrorMessage = "";
+
+    try {
+        const algonomyResponse = await fetch(algonomyUrl);
+        const algonomyData = await algonomyResponse.json();
+
+        if (algonomyResponse.ok && algonomyData && algonomyData.placements && algonomyData.placements.length > 0) {
+            
+            // Tenta obter os produtos usando a chave 'recommendedProducts' ou 'recommendations'
+            const recs = algonomyData.placements[0].recommendedProducts || algonomyData.placements[0].recommendations;
+
+            if (recs && recs.length > 0) {
+                
+                const validProducts = recs
+                    .slice(0, 5) // Pega até 5 produtos para o carrossel
+                    .map(rec => ({
+                        name: rec.name,
+                        imageURL: rec.imageURL, 
+                        clickUrl: rec.clickUrl 
+                    }))
+                    .filter(p => p.name); // Garante que pelo menos o nome exista
+
+                if (validProducts.length > 0) {
+                    recommendedProductsData = validProducts;
+                    recommendedProductsNames = recommendedProductsData.map(p => p.name).join(", ");
+                } else {
+                     algonomyErrorMessage = "Algonomy retornou dados, mas a lista de produtos recomendados está vazia para o placement: " + placement;
+                     recommendedProductsNames = "Não foram encontrados produtos da Algonomy para este cenário.";
+                }
+
+            } else {
+                 algonomyErrorMessage = "Algonomy retornou a estrutura do placement, mas a lista de produtos (recommendedProducts/recommendations) está vazia.";
+                 recommendedProductsNames = "Não foram encontrados produtos da Algonomy para este cenário.";
+            }
+
+        } else {
+            algonomyErrorMessage = `Erro da API Algonomy: Resposta inválida ou sem recomendações. Status: ${algonomyResponse.statusText}`;
+            if (algonomyData.error) {
+                algonomyErrorMessage += ` Detalhe: ${algonomyData.error.message}`;
+            }
+        }
+
+    } catch (e) {
+        console.error("Erro na chamada da API Algonomy (Passo 2):", e);
+        algonomyErrorMessage = `Erro de rede ou CORS ao chamar a Algonomy: ${e.message}`;
     }
 
+    // Se houve erro na Algonomy, seta a mensagem de erro para ser usada no carrossel
+    if (algonomyErrorMessage && recommendedProductsData.length === 0) {
+        recommendedProductsNames = "Não foi possível obter recomendações da Algonomy.";
+    }
 
-    // 2. MONTAGEM DO PROMPT
-    const prompt = `
+    resultElement.textContent = `Tag do Clima: ${weatherTag}. Status Algonomy: ${algonomyErrorMessage ? 'Falha' : 'Sucesso'}. Gerando mensagem final...`;
+    
+    // 3. MONTAGEM DO PROMPT FINAL COM DADOS DA ALGONOMY
+    
+    const finalPrompt = `
         Aja como um especialista em beleza da Época Cosméticos.
         Você deve gerar uma mensagem amigável, pessoal e de alta conversão para o usuário final.
 
         Instruções:
         1. Comece com uma saudação calorosa e personalizada (use o nome).
-        2. Mencione a cidade para gerar conexão.
-        3. Use as CATEGORIAS PREFERIDAS para sugerir 1 a 2 produtos/dicas relevantes.
-        4. Com base na PREVISÃO DO TEMPO, adicione uma dica de beleza que se relacione com o clima.
-        5. O tom deve ser inspirador, luxuoso e focado em autocuidado, como o da Época Cosméticos.
-        6. O texto final deve ser natural, humanizado e pronto para ser enviado.
-        7. NÃO INCLUA os títulos 'Dados do Cliente:' ou 'Instruções:'.
+        2. Mencione a cidade (${city}) para gerar conexão.
+        3. Use a TAG CLIMÁTICA para adicionar uma dica de beleza que se relacione com o clima.
+        4. Use os PRODUTOS RECOMENDADOS para criar uma oferta irresistível.
+        5. Use a informação de GÊNERO para refinar o tom da mensagem.
+        6. SE OS PRODUTOS RECOMENDADOS FOREM UMA MENSAGEM DE ERRO/FALHA ("Não foi possível obter..."), MANTENHA A DICA CLIMÁTICA, MAS ESCREVA UM TEXTO GERAL SOBRE AUTOCUIDADO E INSPIRAÇÃO EM VEZ DE MENCIONAR PRODUTOS ESPECÍFICOS.
+        7. O tom deve ser inspirador, luxuoso e focado em autocuidado.
+        8. O texto final deve ser natural, humanizado e pronto para ser enviado.
+        9. Use **asteriscos duplos** para indicar negrito, se for o caso (Ex: **Melhor Protetor**).
+        10. NÃO INCLUA os títulos 'Dados do Cliente:' ou 'Instruções:'.
 
         Dados do Cliente:
         Nome: ${name}
         Cidade: ${city}
-        Categorias Preferidas: ${categories.join(", ")}
-        Previsão do Tempo: ${weatherSummary}
+        Gênero Preferido: ${gender}
+        Tag Climática: ${weatherTag}
+        Produtos Recomendados: ${recommendedProductsNames}
     `;
 
-    // 3. CHAMADA FINAL AO GEMINI PARA GERAR O TEXTO DE MARKETING
+    // 4. CHAMADA FINAL AO GEMINI PARA GERAR O TEXTO DE MARKETING
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                // ✅ CORREÇÃO: Alterado de 'config' para 'generationConfig'
+                contents: [{ parts: [{ text: finalPrompt }] }],
                 generationConfig: { 
                     temperature: 0.8
                 }
@@ -90,17 +289,26 @@ async function generate() {
 
         if (response.ok && data.candidates && data.candidates.length > 0) {
             resultElement.style.color = "#000";
-            resultElement.textContent = data.candidates[0].content.parts[0].text;
+            
+            // NOVO: Converte o markdown de negrito para HTML e usa innerHTML para renderizar
+            let generatedText = data.candidates[0].content.parts[0].text;
+            let finalHtml = generatedText.replace(/\*\*(.*?)\*\*/gs, '<strong>$1</strong>');
+            
+            resultElement.innerHTML = finalHtml; 
+            
+            // Renderiza o carrossel com os dados da Algonomy (ou a mensagem de erro da Algonomy)
+            renderCarousel(recommendedProductsData, algonomyErrorMessage); 
+            
         } else {
-            console.error("Erro API:", data);
+            console.error("Erro API (Passo 4):", data);
             resultElement.style.color = "red";
             const errorMsg = data.error ? data.error.message : JSON.stringify(data);
-            resultElement.textContent = "Erro ao gerar a mensagem final: " + errorMsg;
+            resultElement.textContent = "Erro ao gerar a mensagem final (Passo 4). Verifique se a sua CHAVE GEMINI está correta: " + errorMsg;
         }
 
     } catch (error) {
-        console.error("Erro de Rede:", error);
-        resultElement.textContent = "Erro de conexão. Verifique sua internet ou a chave API.";
+        console.error("Erro de Rede (Passo 4):", error);
+        resultElement.textContent = "Erro de conexão. Verifique sua internet ou se a CHAVE GEMINI foi digitada corretamente.";
     }
 }
     </script>
